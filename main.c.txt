@@ -1,0 +1,87 @@
+ /*
+ * main.c
+ * author: MK, from GTU electronics
+ */
+
+#include "stm32g0xx.h"
+
+void printSTR( char* STR, int len);
+void printChar( uint8_t ch);
+void USART_IRQhandler(void);
+void Uart2_int( uint32_t baud);
+
+void printSTR( char* STR, int len)
+{
+	for( int i=0; i<len; i++)
+	{
+		printChar((uint8_t)STR[i]);
+	}
+}
+void printChar( uint8_t ch)
+{
+	USART2->TDR = (uint16_t)ch;
+	while( !(USART2->ISR & (1U << 6 ))); //6. bit set when TX is done
+}
+
+void USART_IRQHandler(void)
+{
+	uint8_t data = (uint8_t)USART2->RDR;
+	printChar(data);
+}
+
+void Usart2_init(void
+{
+	RCC->IOPENR |= (1U << 0); //Enable clock for GPIOA
+	RCC->APBENR1 |= (1U << 17); //Enable clock for USART2
+	GPIOA->MODER &= ~(3U << 2*2);
+	GPIOA->MODER |= (2U << 2*2);
+	GPIOA->AFR[0] &= ~(0xFU << 4*2);
+	GPIOA->AFR[0] |= (1 << 4*2);
+
+	GPIOA->MODER &= ~(0xFU << 2*3);
+	GPIOA->MODER |= (2U << 2*3);
+	GPIOA->AFR[0] &= ~(0xFU << 4*3);
+	GPIOA->AFR[0] |= (1 << 4*3);
+}
+
+void Uart2_init(uint32_t baud) //PA2 AND PA3 USART2
+{
+	// cr 0. enable   2.receive 3.transmi  5. receive interrupt
+	USART2->CR1 = 0; //RESET USART CONTROL REG
+	USART2->CR1 |= (1U << 3); //TRANSMiT ENABLE
+	USART2->CR1 |= (1U << 2); //RECiEVE ENABLE
+	USART2->CR1 |= (1U << 5); //Bit 5 RXFNEIE: RXFIFO not empty interrupt enable
+	// iNTERRUPT ENABLE WHILE DATA RECiEVE
+	USART2->BRR = (uint16_t)(SystemCoreClock / baud) ;   //BAUD RATE REG
+	USART2->CR1 |= (1U << 0); // USART ENABLE
+
+	NVIC_SetPriority(USART2_IRQn ,1);
+	NVIC_EnableIRQ(USART2_IRQn);
+
+}
+
+void DelayMs(uint32_t n) {
+	/* if you dont touch calibration regsiter, it has come default speed is clk/8   */
+	// Reload with number of clocks per milisecond @16Mhz   clokc/1000 or 16000 configure to ms
+	SysTick->LOAD = 1600;
+	SysTick->VAL = 0;			 // Clear current value register
+	SysTick->CTRL |= (1U);	 // Enable Systick
+
+	for(uint32_t i=0; i<n; i++) {
+		// Wait until the Count flag is set
+		while((SysTick->CTRL & 0x10000) == 0);
+	}
+
+	SysTick->CTRL |= (0U);	 // disable Systick
+}
+
+
+int main(void) {
+    Uart2_int(9600);
+    while(1) 
+	{
+		printSTR("Hello World :-)  \n",24);		
+      }
+    return 0;
+}
+
